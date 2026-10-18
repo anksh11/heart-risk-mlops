@@ -5,7 +5,7 @@ author: "<Student name> · <BITS ID>"
 date: "October 2026"
 ---
 
-**Code repository:** `<add your GitHub URL here>`  
+**Code repository:** [github.com/bhargavaankit/heart-risk-mlops](https://github.com/bhargavaankit/heart-risk-mlops)  
 **Deployed API:** local Kubernetes (Colima k3s). Access instructions are in §7.  
 **Video walkthrough:** `<add link>`
 
