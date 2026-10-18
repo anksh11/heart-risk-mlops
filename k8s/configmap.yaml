@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: heart-risk-api-config
+  namespace: heart-risk
+data:
+  LOG_LEVEL: "INFO"
+  # Lower than 0.5 => favour recall (fewer missed patients) at the cost of more false alarms.
+  DECISION_THRESHOLD: "0.5"
+  WORKERS: "1"

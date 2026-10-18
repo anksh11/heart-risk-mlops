@@ -1,0 +1,18 @@
+# Optional: host-based routing through an ingress controller (Traefik on k3s,
+# nginx on minikube/kind/cloud). Add `127.0.0.1 heart-risk.local` to /etc/hosts.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: heart-risk-api
+  namespace: heart-risk
+spec:
+  rules:
+    - host: heart-risk.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: heart-risk-api
+                port: {name: http}

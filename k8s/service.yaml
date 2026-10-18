@@ -1,0 +1,17 @@
+# LoadBalancer: on k3s/Colima this is served by the built-in ServiceLB (klipper),
+# on GKE/EKS/AKS it provisions a cloud load balancer.
+apiVersion: v1
+kind: Service
+metadata:
+  name: heart-risk-api
+  namespace: heart-risk
+  labels:
+    app.kubernetes.io/name: heart-risk-api
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: heart-risk-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

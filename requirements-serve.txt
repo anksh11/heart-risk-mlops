@@ -1,0 +1,11 @@
+# Minimal runtime dependencies for the API container (no MLflow / Jupyter / plotting).
+# Versions must match requirements.txt so the pickled pipeline loads identically.
+numpy==1.26.4
+scipy==1.14.1
+pandas==2.2.3
+scikit-learn==1.5.2
+joblib==1.4.2
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+prometheus-client==0.21.0

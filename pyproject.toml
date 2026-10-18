@@ -1,0 +1,26 @@
+[project]
+name = "heart-risk"
+version = "1.0.0"
+description = "Heart-disease risk classifier with an MLOps pipeline (BITS AIMLCZG523 assignment 1)"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "api", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N"]
+ignore = ["N803", "N806", "E402"]  # X / X_train are conventional in ML code; matplotlib.use() must precede pyplot import
+
+[tool.ruff.lint.per-file-ignores]
+# Notebooks bootstrap sys.path in their first cell, so imports cannot sit at the top.
+"notebooks/*" = ["E401", "E402", "I001"]

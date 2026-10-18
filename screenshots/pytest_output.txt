@@ -1,0 +1,12 @@
+api/__init__.py                  0      0   100%
+api/main.py                     98      2    98%
+api/schemas.py                  37      0   100%
+src/heart_risk/__init__.py       1      0   100%
+src/heart_risk/config.py        27      0   100%
+src/heart_risk/data.py          70     27    61%
+src/heart_risk/eda.py           98     98     0%
+src/heart_risk/features.py      28      0   100%
+src/heart_risk/predict.py       37      9    76%
+src/heart_risk/train.py        176    124    30%
+TOTAL                          572    260    55%
+36 passed, 31 warnings in 1.38s

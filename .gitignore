@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+mlruns/
+mlflow.db
+models/mlflow_model/
+.ipynb_checkpoints/
+.DS_Store
+docker/certs/*.crt
+mlruns_mac_backup/
+__MACOSX/
+.zed/

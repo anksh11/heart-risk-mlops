@@ -1,0 +1,135 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  PYTHONPATH: src:.
+  IMAGE: heart-risk-api
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ env.PYTHON_VERSION }}"}
+      - run: pip install ruff==0.7.2
+      - name: Ruff lint
+        run: ruff check --output-format=github .
+      - name: Ruff format check
+        run: ruff format --check --diff .
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit tests
+        run: pytest --junitxml=reports/junit.xml --cov=src --cov=api --cov-report=xml --cov-report=term-missing
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            reports/junit.xml
+            coverage.xml
+
+  train:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Download + clean data
+        run: python -m heart_risk.data
+      - name: EDA figures
+        run: python -m heart_risk.eda
+      - name: Train + track (full grid on main, quick grid on PRs)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then FLAG=--quick; fi
+          python -m heart_risk.train $FLAG 2>&1 | tee reports/train.log
+      - name: Quality gate on the freshly trained model
+        run: pytest -q tests/test_model.py::test_shipped_model_meets_quality_bar
+      - name: Job summary
+        run: |
+          {
+            echo "### Model comparison (CV means / hold-out)"
+            python - <<'PY'
+          import pandas as pd
+          df = pd.read_csv("reports/model_comparison.csv")
+          cols = ["name", "cv_roc_auc_mean", "cv_accuracy_mean", "cv_recall_mean", "test_roc_auc", "test_accuracy"]
+          print(df[cols].round(3).to_markdown(index=False))
+          PY
+            echo; echo "**Selected:** \`$(python -c 'import json;print(json.load(open("models/model_meta.json"))["model_name"])')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: models/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-runs
+          path: mlruns/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: training-reports
+          path: |
+            reports/
+            data/processed/
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: train
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {name: model, path: models/}
+      - name: Build image
+        run: docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+      - name: Smoke test container
+        run: |
+          docker run -d --name api -p 8000:8000 $IMAGE:latest
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && break; sleep 1; done
+          echo; curl -fs -X POST localhost:8000/predict -H 'content-type: application/json' \
+               -d @samples/patient_high_risk.json | tee predict.json
+          python3 -c "import json,sys; r=json.load(open('predict.json')); assert r['prediction'] in (0,1) and 0<=r['confidence']<=1, r"
+          curl -fs localhost:8000/metrics | grep heart_api_predictions_total
+      - name: Container logs
+        if: always()
+        run: docker logs api
+      - name: Save image
+        run: docker save $IMAGE:latest | gzip > heart-risk-api.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: heart-risk-api.tar.gz
+          retention-days: 3
+
+  k8s-manifests:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render + validate manifests
+        run: |
+          kubectl kustomize k8s > rendered.yaml
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          ./kubeconform -strict -summary -ignore-missing-schemas rendered.yaml

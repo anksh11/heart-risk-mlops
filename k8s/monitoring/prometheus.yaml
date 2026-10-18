@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-discovery
+rules:
+  - apiGroups: [""]
+    resources: [pods, endpoints, services]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-discovery
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: prometheus-discovery}
+subjects:
+  - {kind: ServiceAccount, name: prometheus, namespace: heart-risk}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 10s
+    rule_files: [/etc/prometheus/alerts.yml]
+    scrape_configs:
+      # Discover every API pod (not just the Service) via its scrape annotations,
+      # so per-replica metrics are visible.
+      - job_name: heart-risk-api
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces: {names: [heart-risk]}
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+  alerts.yml: |
+    groups:
+      - name: heart-risk-api
+        rules:
+          - alert: HeartApiDown
+            expr: up{job="heart-risk-api"} == 0
+            for: 1m
+            labels: {severity: critical}
+          - alert: HeartApiHighErrorRate
+            expr: |
+              sum(rate(heart_api_requests_total{status=~"5.."}[5m]))
+                / clamp_min(sum(rate(heart_api_requests_total[5m])), 1e-9) > 0.05
+            for: 5m
+            labels: {severity: warning}
+          - alert: HeartApiSlowP95
+            expr: histogram_quantile(0.95, sum by (le) (rate(heart_api_request_latency_seconds_bucket[5m]))) > 0.25
+            for: 5m
+            labels: {severity: warning}
+          # Crude drift signal: share of "disease" predictions moves far from the ~46% training prior.
+          - alert: HeartApiPredictionDrift
+            expr: |
+              sum(rate(heart_api_predictions_total{label="heart disease"}[30m]))
+                / clamp_min(sum(rate(heart_api_predictions_total[30m])), 1e-9) > 0.8
+            for: 15m
+            labels: {severity: info}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels: {app.kubernetes.io/name: prometheus}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: prometheus}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: prometheus}
+    spec:
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.54.1
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.retention.time=2d
+          ports: [{name: http, containerPort: 9090}]
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: config, mountPath: /etc/prometheus}
+      volumes:
+        - name: config
+          configMap: {name: prometheus-config}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+spec:
+  type: LoadBalancer
+  selector: {app.kubernetes.io/name: prometheus}
+  ports: [{name: http, port: 9090, targetPort: http}]

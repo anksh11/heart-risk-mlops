@@ -1,0 +1,34 @@
+# Training configuration – edit here instead of in code.
+data:
+  sources: [cleveland]
+  test_size: 0.2
+  random_state: 42
+
+cv:
+  folds: 5
+  # Model selection metric (any sklearn scorer name).
+  refit_metric: roc_auc
+
+mlflow:
+  experiment: heart-disease-risk
+  # Overridden by the MLFLOW_TRACKING_URI env var when set.
+  tracking_uri: file:./mlruns
+
+models:
+  logistic_regression:
+    grid:
+      model__C: [0.01, 0.1, 0.3, 1.0, 3.0, 10.0]
+      model__penalty: [l1, l2]
+      model__class_weight: [null, balanced]
+  random_forest:
+    grid:
+      model__n_estimators: [200, 400]
+      model__max_depth: [null, 4, 6]
+      model__min_samples_leaf: [1, 3, 5]
+      model__max_features: [sqrt, 0.5]
+  gradient_boosting:
+    grid:
+      model__n_estimators: [100, 200]
+      model__learning_rate: [0.03, 0.1]
+      model__max_depth: [2, 3]
+      model__subsample: [0.8, 1.0]

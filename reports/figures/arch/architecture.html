@@ -1,0 +1,68 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff;font-family:-apple-system,Helvetica,Arial,sans-serif}
+.lane text{font-size:13px}
+</style></head><body>
+<svg width="1400" height="665" viewBox="0 0 1400 665" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#444"/></marker></defs>
+<style>
+.box{fill:#f4f7fb;stroke:#3b6ea5;stroke-width:1.5;rx:8}
+.grp{fill:none;stroke:#9aa7b4;stroke-dasharray:6 4;stroke-width:1.2;rx:12}
+.t{font-size:14px;font-weight:600;fill:#1d2b3a}
+.s{font-size:11.5px;fill:#4a5866}
+.g{font-size:13px;font-weight:700;fill:#5d6b78;letter-spacing:.5px}
+.l{stroke:#444;stroke-width:1.4;fill:none;marker-end:url(#a)}
+.lbl{font-size:11px;fill:#444}
+.hot{fill:#fdf1f2;stroke:#d1495b}
+.grn{fill:#f1f8f3;stroke:#5a9e6f}
+</style>
+<text x="20" y="32" font-size="20" font-weight="700" fill="#1d2b3a">Heart-Disease Risk – MLOps architecture</text>
+
+<!-- Dev / training -->
+<rect class="grp" x="20" y="55" width="640" height="300"/>
+<text class="g" x="36" y="78">1 · DATA &amp; TRAINING (local / CI runner)</text>
+<rect class="box" x="40" y="95" width="170" height="70"/><text class="t" x="55" y="122">UCI repository</text><text class="s" x="55" y="142">heart+disease.zip</text>
+<rect class="box" x="250" y="95" width="170" height="70"/><text class="t" x="265" y="122">heart_risk.data</text><text class="s" x="265" y="142">download · clean · dedupe</text>
+<rect class="box" x="460" y="95" width="180" height="70"/><text class="t" x="475" y="122">heart_clean.csv</text><text class="s" x="475" y="142">303 rows, NaNs kept</text>
+<rect class="box" x="40" y="205" width="170" height="70"/><text class="t" x="55" y="232">heart_risk.eda</text><text class="s" x="55" y="252">7 report figures</text>
+<rect class="box" x="250" y="205" width="170" height="120"/><text class="t" x="265" y="232">heart_risk.train</text><text class="s" x="265" y="252">sklearn Pipeline:</text><text class="s" x="265" y="268">feature builder → impute</text><text class="s" x="265" y="284">→ scale / one-hot → model</text><text class="s" x="265" y="304">GridSearchCV × 3 families</text>
+<rect class="box grn" x="460" y="205" width="180" height="55"/><text class="t" x="475" y="230">MLflow tracking</text><text class="s" x="475" y="248">params · metrics · plots · registry</text>
+<rect class="box grn" x="460" y="275" width="180" height="55"/><text class="t" x="475" y="300">models/</text><text class="s" x="475" y="318">joblib + MLflow format + meta</text>
+<path class="l" d="M210 130H248"/><path class="l" d="M420 130H458"/>
+<path class="l" d="M550 165V185H125V203"/><path class="l" d="M550 165V185H335V203"/>
+<path class="l" d="M420 232H458"/><path class="l" d="M420 300H458"/>
+
+<!-- CI -->
+<rect class="grp" x="690" y="55" width="690" height="300"/>
+<text class="g" x="706" y="78">2 · CI/CD (GitHub Actions)</text>
+<rect class="box" x="710" y="100" width="110" height="60"/><text class="t" x="725" y="126">lint</text><text class="s" x="725" y="144">ruff check/format</text>
+<rect class="box" x="845" y="100" width="110" height="60"/><text class="t" x="860" y="126">test</text><text class="s" x="860" y="144">pytest + coverage</text>
+<rect class="box" x="980" y="100" width="120" height="60"/><text class="t" x="995" y="126">train</text><text class="s" x="995" y="144">data→train→gate</text>
+<rect class="box" x="1125" y="100" width="120" height="60"/><text class="t" x="1140" y="126">docker</text><text class="s" x="1140" y="144">build + smoke test</text>
+<rect class="box" x="845" y="190" width="255" height="50"/><text class="t" x="860" y="212">k8s-manifests</text><text class="s" x="860" y="230">kustomize render + kubeconform</text>
+<path class="l" d="M820 130H843"/><path class="l" d="M955 130H978"/><path class="l" d="M1100 130H1123"/><path class="l" d="M765 160V215H843"/>
+<rect class="box grn" x="980" y="265" width="380" height="65"/><text class="t" x="995" y="290">Workflow artifacts</text><text class="s" x="995" y="310">junit · coverage · model · mlruns · reports · image.tar.gz</text>
+<path class="l" d="M1040 160V263"/><path class="l" d="M1185 160V263"/>
+<text class="lbl" x="1260" y="126">pipeline fails</text><text class="lbl" x="1260" y="140">on any error</text>
+
+<!-- Runtime -->
+<rect class="grp" x="20" y="385" width="1360" height="260"/>
+<text class="g" x="36" y="408">3 · SERVING &amp; MONITORING (Kubernetes namespace heart-risk · Colima k3s / any cluster)</text>
+<rect class="box" x="40" y="440" width="150" height="70"/><text class="t" x="55" y="468">Client</text><text class="s" x="55" y="488">curl · Swagger · app</text>
+<rect class="box" x="240" y="430" width="200" height="90"/><text class="t" x="255" y="458">Service (LoadBalancer)</text><text class="s" x="255" y="478">:8080 → pods :8000</text><text class="s" x="255" y="496">+ Ingress heart-risk.local</text>
+<rect class="box hot" x="500" y="425" width="300" height="200"/><text class="t" x="515" y="452">Deployment heart-risk-api (2–5 pods, HPA)</text>
+<rect class="box" x="520" y="470" width="260" height="140" style="fill:#fff"/>
+<text class="t" x="535" y="494">FastAPI container (non-root)</text>
+<text class="s" x="535" y="514">POST /predict · /predict/batch</text>
+<text class="s" x="535" y="530">GET /health · /model-info · /metrics</text>
+<text class="s" x="535" y="550">pydantic validation → 422</text>
+<text class="s" x="535" y="566">JSON request + prediction logs</text>
+<text class="s" x="535" y="582">Prometheus counters / histograms</text>
+<text class="s" x="535" y="598">baked-in model artefact</text>
+<rect class="box grn" x="880" y="430" width="200" height="80"/><text class="t" x="895" y="458">Prometheus</text><text class="s" x="895" y="478">pod discovery via annotations</text><text class="s" x="895" y="494">4 alert rules (down/5xx/p95/drift)</text>
+<rect class="box grn" x="1140" y="430" width="210" height="80"/><text class="t" x="1155" y="458">Grafana</text><text class="s" x="1155" y="478">provisioned "Heart Risk API"</text><text class="s" x="1155" y="494">dashboard, 11 panels</text>
+<rect class="box" x="880" y="560" width="200" height="60"/><text class="t" x="895" y="585">kubectl logs / stdout</text><text class="s" x="895" y="603">one JSON object per line</text>
+<path class="l" d="M190 475H238"/><path class="l" d="M440 475H498"/>
+<path class="l" d="M880 470H802"/><text class="lbl" x="815" y="463">scrape</text>
+<path class="l" d="M1080 470H1138"/><path class="l" d="M800 590H878"/>
+<path class="l" d="M640 330V360H650V423" stroke-dasharray="4 3"/><text class="lbl" x="655" y="380">docker build (model copied into image)</text>
+</svg></body></html>

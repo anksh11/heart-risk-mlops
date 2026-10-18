@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: heart-risk
+resources:
+  - prometheus.yaml
+  - grafana.yaml
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - dashboards/heart-risk-api.json
+generatorOptions:
+  disableNameSuffixHash: true

@@ -1,0 +1,16 @@
+== GET http://localhost:8000/health
+{"status":"ok","model_loaded":true,"model_name":"logistic_regression","model_version":"1.0.0"}
+== GET http://localhost:8000/model-info
+{"model_name":"logistic_regression","model_version":"1.0.0","trained_at":"2026-10-16T20:59:10.013029+00:00","selection_metric":"cv_roc_auc_mean","best_params":{"model__C":1.0,"model__class_weight":"balanced","model__penalty":"l2"},"cv_metrics":{"cv_accuracy_mean":0.8552,"cv_precision_mean":0.8608,"cv_recall_mean":0.8281,"cv_f1_mean":0.8404,"cv_roc_auc_mean":0.9064,"cv_accuracy_std":0.0301,"cv_prec
+== POST /predict (samples/patient_high_risk.json)
+{"prediction":1,"label":"heart disease","probability_disease":0.9972,"confidence":0.9972,"risk_band":"high","model_name":"logistic_regression","model_version":"1.0.0","request_id":"1d1dec8a494f"}
+== POST /predict (samples/patient_low_risk.json)
+{"prediction":0,"label":"no heart disease","probability_disease":0.0523,"confidence":0.9477,"risk_band":"low","model_name":"logistic_regression","model_version":"1.0.0","request_id":"d2bbd4f59e1a"}
+== POST /predict/batch
+{"predictions":[{"prediction":1,"label":"heart disease","probability_disease":0.9972,"confidence":0.9972,"risk_band":"high"},{"prediction":0,"label":"no heart disease","probability_disease":0.0523,"confidence":0.9477,"risk_band":"low"},{"prediction":0,"label":"no heart disease","probability_disease":0.0137,"confidence":0.9863,"risk_band":"low"}],"model_name":"logistic_regression","model_version":"1.0.0","request_id":"3367999df719"}
+== POST /predict (invalid, expect 422)
+422 OK
+== GET /metrics (excerpt)
+heart_api_predictions_total{label="heart disease",risk_band="high"} 2.0
+heart_api_predictions_total{label="no heart disease",risk_band="low"} 3.0
+heart_api_model_loaded 1.0
