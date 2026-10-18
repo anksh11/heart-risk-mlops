@@ -1,0 +1,36 @@
+$ kubectl -n heart-risk get pods,svc,ingress,hpa
+NAME                                  READY   STATUS    RESTARTS   AGE
+pod/grafana-6c45f68ff-2vdrc           1/1     Running   0          2m45s
+pod/heart-risk-api-6b97587b97-5zn9l   1/1     Running   0          2m45s
+pod/heart-risk-api-6b97587b97-77hhn   1/1     Running   0          2m45s
+pod/prometheus-7d9457484-68m4s        1/1     Running   0          2m45s
+
+NAME                     TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/grafana          LoadBalancer   10.96.112.217   172.18.0.7    3000:31252/TCP   2m46s
+service/heart-risk-api   LoadBalancer   10.96.242.174   172.18.0.6    8080:32578/TCP   2m45s
+service/prometheus       LoadBalancer   10.96.152.148   172.18.0.5    9090:32494/TCP   2m45s
+
+NAME                                       CLASS    HOSTS              ADDRESS   PORTS   AGE
+ingress.networking.k8s.io/heart-risk-api   <none>   heart-risk.local             80      2m45s
+
+NAME                                                 REFERENCE                   TARGETS              MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/heart-risk-api   Deployment/heart-risk-api   cpu: <unknown>/70%   2         5         2          2m45s
+
+$ BASE_URL=http://localhost:8080 ./scripts/smoke_test.sh
+== GET http://localhost:8080/health
+{"status":"ok","model_loaded":true,"model_name":"logistic_regression","model_version":"1.0.0"}
+== GET http://localhost:8080/model-info
+{"model_name":"logistic_regression","model_version":"1.0.0","trained_at":"2026-10-18T19:06:34.787908+00:00","selection_metric":"cv_roc_auc_mean","best_params":{"model__C":1.0,"model__class_weight":"balanced","model__penalty":"l2"},"cv_metrics":{"cv_accuracy_mean":0.8552,"cv_precision_mean":0.8608,"cv_recall_mean":0.8281,"cv_f1_mean":0.8404,"cv_roc_auc_mean":0.9064,"cv_accuracy_std":0.0301,"cv_prec
+== POST /predict (samples/patient_high_risk.json)
+{"prediction":1,"label":"heart disease","probability_disease":0.9972,"confidence":0.9972,"risk_band":"high","model_name":"logistic_regression","model_version":"1.0.0","request_id":"26cb6d5d313f"}
+== POST /predict (samples/patient_low_risk.json)
+{"prediction":0,"label":"no heart disease","probability_disease":0.0523,"confidence":0.9477,"risk_band":"low","model_name":"logistic_regression","model_version":"1.0.0","request_id":"184f613b5683"}
+== POST /predict/batch
+{"predictions":[{"prediction":1,"label":"heart disease","probability_disease":0.9972,"confidence":0.9972,"risk_band":"high"},{"prediction":0,"label":"no heart disease","probability_disease":0.0523,"confidence":0.9477,"risk_band":"low"},{"prediction":0,"label":"no heart disease","probability_disease":0.0137,"confidence":0.9863,"risk_band":"low"}],"model_name":"logistic_regression","model_version":"1.0.0","request_id":"8d9bb7b3edc6"}
+== POST /predict (invalid, expect 422)
+422 OK
+== GET /metrics (excerpt)
+heart_api_predictions_total{label="heart disease",risk_band="high"} 1.0
+heart_api_predictions_total{label="no heart disease",risk_band="low"} 2.0
+heart_api_model_loaded 1.0
+exit code: 0

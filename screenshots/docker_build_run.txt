@@ -1,0 +1,16 @@
+$ docker images heart-risk-api
+IMAGE                  ID             DISK USAGE   CONTENT SIZE   EXTRA
+heart-risk-api:1.0.0   a327c3ff9750        787MB          179MB   U    
+
+$ docker ps --filter name=heart-risk-api
+CONTAINER ID   IMAGE                  COMMAND                  CREATED          STATUS                    PORTS                                         NAMES
+6253ad28c920   heart-risk-api:1.0.0   "sh -c 'uvicorn api.…"   16 seconds ago   Up 16 seconds (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp   heart-risk-api
+
+$ curl localhost:8000/health
+{"status":"ok","model_loaded":true,"model_name":"logistic_regression","model_version":"1.0.0"}
+
+$ curl -X POST localhost:8000/predict -d @samples/patient_high_risk.json
+{"prediction":1,"label":"heart disease","probability_disease":0.9972,"confidence":0.9972,"risk_band":"high","model_name":"logistic_regression","model_version":"1.0.0","request_id":"b8456216c4cd"}
+
+$ curl -X POST localhost:8000/predict -d @samples/patient_low_risk.json
+{"prediction":0,"label":"no heart disease","probability_disease":0.0523,"confidence":0.9477,"risk_band":"low","model_name":"logistic_regression","model_version":"1.0.0","request_id":"c5b7b7a1e31a"}
