@@ -6,7 +6,7 @@ The project trains a classifier on the UCI Heart Disease (Cleveland) data. It tr
 
 | | |
 |---|---|
-| **Repository** | [github.com/bhargavaankit/heart-risk-mlops](https://github.com/bhargavaankit/heart-risk-mlops) |
+| **Repository** | [github.com/anksh11/heart-risk-mlops](https://github.com/anksh11/heart-risk-mlops) |
 | **Report** | [`reports/MLOps_Assignment1_Report.docx`](reports/MLOps_Assignment1_Report.docx) (source: [`reports/REPORT.md`](reports/REPORT.md)) |
 | **Architecture** | [`reports/figures/arch/architecture.png`](reports/figures/arch/architecture.png) |
 | **Selected model** | Logistic Regression (L2, C=1, balanced) — CV ROC-AUC **0.906 ± 0.020**, hold-out ROC-AUC **0.957** |

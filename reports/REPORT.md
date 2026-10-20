@@ -5,7 +5,7 @@ author: "Ankit Bhargava · BITS ID 2025AE05637"
 date: "October 2026"
 ---
 
-**Code repository:** [github.com/bhargavaankit/heart-risk-mlops](https://github.com/bhargavaankit/heart-risk-mlops)  
+**Code repository:** [github.com/anksh11/heart-risk-mlops](https://github.com/anksh11/heart-risk-mlops)  
 **Deployed API:** local Kubernetes (minikube, Docker driver) on the Rocky Linux 9.5 lab server, also verified on Windows. Access instructions are in §7.  
 **Video walkthrough:** `<add link>`
 
