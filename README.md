@@ -112,6 +112,19 @@ make load                # 2 minutes of traffic so the dashboards have data
 
 On minikube, run `minikube tunnel` so the LoadBalancer services get an IP.
 
+### Linux host (one interactive script)
+
+On a Linux server (Rocky/RHEL/Amazon Linux or Ubuntu/Debian), `scripts/run_linux.sh` walks through every step: tool checks and installs, venv, data/EDA/train/test/lint, Docker build and `/predict` check, minikube with the `ingress` and `metrics-server` addons, deployment, smoke and load tests.
+
+```bash
+chmod +x scripts/run_linux.sh
+./scripts/run_linux.sh          # menu
+./scripts/run_linux.sh all      # everything in order
+./scripts/run_linux.sh access   # one step: prereqs python pipeline docker k8s access smoke load status stop
+```
+
+It exposes the API, Prometheus and Grafana on `localhost:8080/9090/3000` with background `kubectl port-forward`s. On Linux, `minikube tunnel` serves each LoadBalancer on its cluster IP, not on localhost. To view the UIs from your own PC, keep `ssh -L 8080:localhost:8080 -L 9090:localhost:9090 -L 3000:localhost:3000 user@server` open.
+
 Without Kubernetes, run `docker compose up --build`. It starts the same API, Prometheus and Grafana stack on ports 8000, 9090 and 3000.
 
 To tear down, run `make k8s-delete`.
