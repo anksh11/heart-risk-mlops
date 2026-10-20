@@ -7,7 +7,7 @@ date: "October 2026"
 
 **Code repository:** [github.com/anksh11/heart-risk-mlops](https://github.com/anksh11/heart-risk-mlops)  
 **Deployed API:** local Kubernetes (minikube, Docker driver) on the Rocky Linux 9.5 lab server, also verified on Windows. Access instructions are in §7.  
-**Video walkthrough:** `<add link>`
+**Video walkthrough:** [Google Drive (9 min 43 s)](https://drive.google.com/file/d/1CmxuNooQo1BZCMFgt2PRvO-mXelbYYvq/view?usp=sharing)
 
 # 1. Overview
 
