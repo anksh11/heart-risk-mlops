@@ -12,13 +12,15 @@ import urllib.request
 import pandas as pd
 
 
-def post(url: str, body: dict) -> int:
+def post(url: str, body: dict) -> int | str:
     req = urllib.request.Request(url, json.dumps(body).encode(), {"content-type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=5) as r:
             return r.status
     except urllib.error.HTTPError as e:
         return e.code
+    except OSError:  # connection reset/refused, e.g. while pods scale behind `minikube tunnel`
+        return "conn_error"
 
 
 def main() -> None:

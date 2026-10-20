@@ -6,7 +6,7 @@ date: "October 2026"
 ---
 
 **Code repository:** [github.com/bhargavaankit/heart-risk-mlops](https://github.com/bhargavaankit/heart-risk-mlops)  
-**Deployed API:** local Kubernetes (Colima k3s). Access instructions are in §7.  
+**Deployed API:** local Kubernetes (minikube on Windows, Docker driver). Access instructions are in §7.  
 **Video walkthrough:** `<add link>`
 
 # 1. Overview
@@ -205,21 +205,21 @@ Local verification (`scripts/smoke_test.sh`, output in `screenshots/local_smoke_
 
 ## 7.2 Kubernetes
 
-The target is a local k3s cluster created with `colima start --kubernetes`. The manifests are plain YAML assembled with Kustomize (`kubectl apply -k k8s`) and work unchanged on Docker Desktop, minikube or a managed cloud cluster.
+The target is a local minikube cluster (Kubernetes v1.37, Docker driver) started with `minikube start --driver=docker --addons=ingress,metrics-server`. The `ingress` addon provides the NGINX ingress controller and `metrics-server` feeds CPU usage to the autoscaler. The manifests are plain YAML assembled with Kustomize (`kubectl apply -k k8s`) and work unchanged on Docker Desktop, minikube or a managed cloud cluster.
 
 | Manifest | Highlights |
 |---|---|
 | `namespace.yaml` | Dedicated `heart-risk` namespace |
 | `configmap.yaml` | `LOG_LEVEL`, `DECISION_THRESHOLD`, `WORKERS`: tunable without a rebuild |
 | `deployment.yaml` | 2 replicas; rolling update with `maxUnavailable: 0`; readiness and liveness probes on `/health`; CPU/memory requests and limits; `runAsNonRoot`, `readOnlyRootFilesystem`, all capabilities dropped, seccomp `RuntimeDefault`; Prometheus scrape annotations |
-| `service.yaml` | `type: LoadBalancer` on port 8080. k3s ServiceLB binds it to the host; on a cloud cluster it provisions a cloud LB. |
-| `ingress.yaml` | Host `heart-risk.local` through the cluster's ingress controller (Traefik on k3s) |
-| `hpa.yaml` | 2–5 replicas at 70 % CPU |
+| `service.yaml` | `type: LoadBalancer` on port 8080. On minikube, `minikube tunnel` assigns it `127.0.0.1`; on a cloud cluster it provisions a cloud LB. |
+| `ingress.yaml` | Host `heart-risk.local` through the NGINX ingress controller (minikube `ingress` addon) |
+| `hpa.yaml` | 2–5 replicas at 70 % CPU. Verified: during the load test CPU reached 56 % and the HPA scaled the API from 2 to 3 replicas. |
 | `monitoring/` | Prometheus and Grafana (§8) |
 
-`scripts/deploy_k8s.sh` (`make k8s-deploy`) builds the image, loads it into the cluster where needed (minikube or kind), applies everything, waits for the three rollouts and prints the endpoints.
+`scripts/deploy_k8s.sh` (`make k8s-deploy`) builds the image, loads it into the cluster where needed (`minikube image load` here), applies everything, waits for the three rollouts and prints the endpoints. Keep `minikube tunnel` running in a separate terminal so the LoadBalancer services are reachable.
 
-**Access instructions (local):** API at `http://localhost:8080/docs` (LoadBalancer) or `http://heart-risk.local/docs` (Ingress, after adding a hosts entry); Prometheus at `:9090`; Grafana at `:3000`.
+**Access instructions (local):** API at `http://localhost:8080/docs` (LoadBalancer) or `http://heart-risk.local/docs` (Ingress, after adding `127.0.0.1 heart-risk.local` to `C:\Windows\System32\drivers\etc\hosts`; without it, `curl -H "Host: heart-risk.local" http://127.0.0.1/health`); Prometheus at `:9090`; Grafana at `:3000`.
 
 *Figures 15–16: `kubectl get pods,svc,ingress,hpa` and the smoke test against `localhost:8080`. Screenshots go here: `screenshots/k8s_pods_services.png`, `screenshots/k8s_smoke_test.png`.*
 
