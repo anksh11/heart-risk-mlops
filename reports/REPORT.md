@@ -1,7 +1,7 @@
 ---
 title: "Heart-Disease Risk Prediction — End-to-End MLOps Pipeline"
 subtitle: "AIMLCZG523 Machine Learning Operations · Assignment 1"
-author: "<Student name> · 2025AE05637"
+author: "Ankit Bhargava · BITS ID 2025AE05637"
 date: "October 2026"
 ---
 
