@@ -6,7 +6,7 @@ date: "October 2026"
 ---
 
 **Code repository:** [github.com/bhargavaankit/heart-risk-mlops](https://github.com/bhargavaankit/heart-risk-mlops)  
-**Deployed API:** local Kubernetes (minikube on Windows, Docker driver). Access instructions are in §7.  
+**Deployed API:** local Kubernetes (minikube, Docker driver) on the Rocky Linux 9.5 lab server, also verified on Windows. Access instructions are in §7.  
 **Video walkthrough:** `<add link>`
 
 # 1. Overview
@@ -17,7 +17,7 @@ The goal is to predict whether a patient has heart disease from 13 routinely col
 2. **CI/CD.** GitHub Actions lints, unit-tests, retrains, quality-gates, builds and smoke-tests the container, and validates the Kubernetes manifests on every push.
 3. **Serving and monitoring.** A FastAPI container runs on Kubernetes behind a LoadBalancer Service and an Ingress. Prometheus scrapes each pod, and a provisioned Grafana dashboard shows traffic, latency and the distribution of model outputs.
 
-![Figure 1 – System architecture](figures/arch/architecture.png){width=100%}
+![Figure 1 – System architecture](figures/arch/architecture.png){width=70%}
 
 **Design choices that shaped the solution:**
 
@@ -35,7 +35,7 @@ The goal is to predict whether a patient has heart disease from 13 routinely col
 
 The archive has four collection sites with the same 14-column layout. Figure 2 shows that only Cleveland is usable as is. The Hungarian, Swiss and VA files are missing 42–99 % of `ca` and `thal`, and the Swiss file has no cholesterol at all (stored as 0). Those features turn out to be among the strongest predictors. Pooling the sites would mean training mostly on imputed values and would add a site-level confound. **I therefore train on the 303 Cleveland patients.** Pooling is still one CLI flag away (`--sources cleveland hungarian …`).
 
-![Figure 2 – Missingness per site after cleaning](figures/eda/07_missingness_by_source.png){width=100%}
+![Figure 2 – Missingness per site after cleaning](figures/eda/07_missingness_by_source.png){width=70%}
 
 ## 2.3 Cleaning
 
@@ -54,17 +54,17 @@ After cleaning, Cleveland has 4 missing `ca` and 2 missing `thal`. Everything el
 
 The classes are close to balanced: 164 patients without disease (54 %) and 139 with (46 %). Accuracy is therefore a meaningful metric, but I also track recall and ROC-AUC because a missed diagnosis costs more than a false alarm.
 
-![Figure 3 – Class balance](figures/eda/01_class_balance.png){width=45%}
+![Figure 3 – Class balance](figures/eda/01_class_balance.png){width=35%}
 
-![Figure 4 – Numeric features by diagnosis](figures/eda/02_numeric_histograms.png){width=100%}
+![Figure 4 – Numeric features by diagnosis](figures/eda/02_numeric_histograms.png){width=72%}
 
 * **`thalach` (max heart rate)** is clearly lower in diseased patients, and **`oldpeak` (ST depression)** and **`ca`** are clearly higher. Cholesterol and resting blood pressure separate the classes only weakly. Their distributions overlap almost completely.
 * Among the categorical features (Figure 5), asymptomatic chest pain (`cp=4`, 73 % prevalence), exercise-induced angina (77 %), a flat ST slope (65 %) and a reversible thallium defect (76 %) are the strongest indicators. Counter-intuitively, typical angina has a *lower* rate than asymptomatic pain. This is a well-known property of this cohort: patients were referred for angiography because of symptoms.
 * `restecg=1` has only 4 patients. One-hot encoding keeps the level, but its coefficient is unreliable.
 
-![Figure 5 – Disease rate per categorical level (n shown on bars)](figures/eda/03_categorical_disease_rate.png){width=100%}
+![Figure 5 – Disease rate per categorical level (n shown on bars)](figures/eda/03_categorical_disease_rate.png){width=72%}
 
-![Figure 6 – Spearman correlations](figures/eda/04_correlation_heatmap.png){width=75%}
+![Figure 6 – Spearman correlations](figures/eda/04_correlation_heatmap.png){width=46%}
 
 The correlation heatmap uses Spearman correlation because most variables are ordinal. It shows moderate collinearity between `slope` and `oldpeak` (0.6) and between `age` and `thalach` (−0.4). No pair is redundant enough to drop, and regularisation handles the rest. The features most correlated with the target are `thal`, `ca`, `cp`, `oldpeak`, `exang` and `thalach`, each with |ρ| ≈ 0.4–0.5.
 
@@ -89,7 +89,7 @@ That gives 24 model inputs. `OneHotEncoder` uses the *fixed* category list from 
 * `hr_reserve_ratio = thalach / (220 − age)`. Max heart rate falls with age (Figure 7), so a raw `thalach` of 130 means something different at 40 than at 70. The ratio expresses achieved heart rate as a fraction of the age-predicted maximum. Values below about 0.85 (chronotropic incompetence) are a recognised marker of coronary disease.
 * `age_chol_index = age × chol / 1000`. A crude cumulative-exposure interaction that a linear model can't build on its own.
 
-![Figure 7 – Motivation for the heart-rate-reserve ratio](figures/eda/06_age_vs_thalach.png){width=60%}
+![Figure 7 – Motivation for the heart-rate-reserve ratio](figures/eda/06_age_vs_thalach.png){width=45%}
 
 `ca` is treated as numeric because it is an ordinal count from 0 to 3. `cp`, `restecg`, `slope` and `thal` are one-hot encoded. Their codes are nominal: `thal` 3/6/7 is not an ordered scale.
 
@@ -113,13 +113,13 @@ Every grid point is scored on accuracy, precision, recall, F1 and ROC-AUC. **ROC
 | Random Forest | 0.898 ± 0.028 | 0.826 | 0.852 | 0.765 | 0.799 | 0.953 | 0.885 | 0.929 |
 | Gradient Boosting | 0.880 ± 0.026 | 0.802 | 0.802 | 0.774 | 0.781 | 0.949 | 0.885 | 0.893 |
 
-![Figure 8 – Cross-validated comparison (mean ± std over 5 folds)](figures/training/model_comparison.png){width=85%}
+![Figure 8 – Cross-validated comparison (mean ± std over 5 folds)](figures/training/model_comparison.png){width=60%}
 
 **Selected model: Logistic Regression, L2, C = 1.0, `class_weight="balanced"`.** It wins on every CV metric and has the lowest fold-to-fold variance. With 242 training rows, the extra capacity of the tree ensembles mostly fits noise. Note that RF's best configuration was its *most* regularised one (`min_samples_leaf=5`). Class balancing traded a little precision for recall, which is the right trade-off for a screening tool. On the untouched hold-out set, the model misses only 1 of 28 diseased patients (recall 0.96, precision 0.82).
 
 Hold-out scores are higher than CV scores for all three models. With 61 test patients, one or two borderline cases move accuracy by 3 percentage points. The CV estimate of about 0.85 accuracy and 0.91 AUC is the figure I would quote.
 
-![Figure 9 – Hold-out ROC and confusion matrix (LR)](figures/training/roc_logistic_regression.png){width=45%} ![](figures/training/confusion_logistic_regression.png){width=42%}
+![Figure 9 – Hold-out ROC and confusion matrix (LR)](figures/training/roc_logistic_regression.png){width=32%} ![](figures/training/confusion_logistic_regression.png){width=30%}
 
 The largest standardised coefficients are `sex` (male, +1.14), `ca` (+1.09), `cp=asymptomatic` (+0.97), `exang` (+0.65) and `thal=reversible` (+0.63). Negative coefficients go to `cp` = non-anginal or typical, `thal=normal` and an upsloping ST segment. These match the EDA and clinical intuition, which is a useful sanity check that the model isn't keying on artefacts.
 
@@ -139,9 +139,9 @@ Each training invocation creates four runs in the `heart-disease-risk` experimen
 
 The tracking URI defaults to `file:./mlruns`. Set `MLFLOW_TRACKING_URI` to point at a shared server. CI uploads the `mlruns/` folder as a workflow artefact, so every pipeline run's experiments can be downloaded and browsed with `mlflow ui`.
 
-![Figure 10 – MLflow experiment: candidate and final runs (two training invocations)](../screenshots/mlflow_experiment_runs.png){width=100%}
+![](../screenshots/mlflow_experiment_runs.png){width=49%} ![](../screenshots/mlflow_run_artifacts.png){width=49%}
 
-![Figure 11 – Logged artefacts and model signature of the selected run](../screenshots/mlflow_run_artifacts.png){width=100%}
+*Figure 10 (left) – MLflow experiment: candidate and final runs (two training invocations). Figure 11 (right) – Logged artefacts and model signature of the selected run.*
 
 # 5. Packaging and reproducibility
 
@@ -181,7 +181,9 @@ lint ──► test ──► train ──► docker
 
 All steps run with `bash -e`. The pipeline fails and stops downstream jobs on any lint error, test failure, a regression below the quality bar, or a container that doesn't answer correctly. Step logs show exactly which check failed. `concurrency` cancels superseded runs on the same branch.
 
-*Figures 12–13: GitHub Actions run and artefacts. Screenshots go here: `screenshots/github_actions_run.png`, `screenshots/github_actions_artifacts.png`.*
+![](../screenshots/github_actions_run.png){width=49%} ![](../screenshots/github_actions_artifacts.png){width=49%}
+
+*Figure 12 (left) – Green GitHub Actions run (lint → test → train → docker, plus k8s-manifests) with the training job summary. Figure 13 (right) – Artefacts produced by the run: Docker image, MLflow runs, model, test and training reports.*
 
 # 7. Containerisation and deployment
 
@@ -201,7 +203,7 @@ The `Dockerfile` is a two-stage build on `python:3.11-slim`. The builder stage i
 
 Local verification (`scripts/smoke_test.sh`, output in `screenshots/local_smoke_test.txt`): `/health` → ok; high-risk sample → 1 (p = 0.997); low-risk sample → 0 (p = 0.052); a batch of 3, one without `ca`/`thal`, succeeds; an invalid body → 422; `/metrics` shows the prediction counters.
 
-*Figure 14: `docker build` / `docker run` / `curl /predict`. Screenshot goes here: `screenshots/docker_build_run.png`.*
+![Figure 14 – `make docker-build`, `docker run` and `curl /predict` on the lab server: high-risk sample → 1 (p = 0.997)](../screenshots/docker_build_run.png){width=78%}
 
 ## 7.2 Kubernetes
 
@@ -212,16 +214,26 @@ The target is a local minikube cluster (Kubernetes v1.37, Docker driver) started
 | `namespace.yaml` | Dedicated `heart-risk` namespace |
 | `configmap.yaml` | `LOG_LEVEL`, `DECISION_THRESHOLD`, `WORKERS`: tunable without a rebuild |
 | `deployment.yaml` | 2 replicas; rolling update with `maxUnavailable: 0`; readiness and liveness probes on `/health`; CPU/memory requests and limits; `runAsNonRoot`, `readOnlyRootFilesystem`, all capabilities dropped, seccomp `RuntimeDefault`; Prometheus scrape annotations |
-| `service.yaml` | `type: LoadBalancer` on port 8080. On minikube, `minikube tunnel` assigns it `127.0.0.1`; on a cloud cluster it provisions a cloud LB. |
+| `service.yaml` | `type: LoadBalancer` on port 8080. `minikube tunnel` gives it an external IP (`127.0.0.1` on Windows, the service's cluster IP on Linux); on a cloud cluster it provisions a cloud LB. |
 | `ingress.yaml` | Host `heart-risk.local` through the NGINX ingress controller (minikube `ingress` addon) |
-| `hpa.yaml` | 2–5 replicas at 70 % CPU. Verified: during the load test CPU reached 56 % and the HPA scaled the API from 2 to 3 replicas. |
+| `hpa.yaml` | 2–5 replicas at 70 % CPU of the 100m request. Verified under load: CPU reached 113 % and the HPA scaled the API from 2 to 4 replicas (Figure 18). |
 | `monitoring/` | Prometheus and Grafana (§8) |
 
-`scripts/deploy_k8s.sh` (`make k8s-deploy`) builds the image, loads it into the cluster where needed (`minikube image load` here), applies everything, waits for the three rollouts and prints the endpoints. Keep `minikube tunnel` running in a separate terminal so the LoadBalancer services are reachable.
+`scripts/deploy_k8s.sh` (`make k8s-deploy`) builds the image, loads it into the cluster where needed (`minikube image load` here), applies everything, waits for the three rollouts and prints the endpoints. Keep `minikube tunnel` running in a separate terminal so the LoadBalancer services are reachable. On a Linux host, `scripts/run_linux.sh` runs every step interactively (tool install, venv, pipeline, Docker check, minikube deploy, port-forwarded access, smoke and load tests).
 
-**Access instructions (local):** API at `http://localhost:8080/docs` (LoadBalancer) or `http://heart-risk.local/docs` (Ingress, after adding `127.0.0.1 heart-risk.local` to `C:\Windows\System32\drivers\etc\hosts`; without it, `curl -H "Host: heart-risk.local" http://127.0.0.1/health`); Prometheus at `:9090`; Grafana at `:3000`.
+**Access instructions (local):**
 
-*Figures 15–16: `kubectl get pods,svc,ingress,hpa` and the smoke test against `localhost:8080`. Screenshots go here: `screenshots/k8s_pods_services.png`, `screenshots/k8s_smoke_test.png`.*
+* **Windows / macOS:** API at `http://localhost:8080/docs`, Prometheus at `:9090`, Grafana at `:3000` while `minikube tunnel` runs.
+* **Linux:** the tunnel serves each LoadBalancer on its external IP, so use `kubectl -n heart-risk get svc` and browse to `http://<EXTERNAL-IP>:8080/docs` (`:9090`, `:3000` for the others), or run `./scripts/run_linux.sh access` to port-forward all three to `localhost`.
+* **Ingress:** `curl -H "Host: heart-risk.local" http://$(minikube ip)/health`, or add `heart-risk.local` to the hosts file and open `http://heart-risk.local/docs`.
+
+![](../screenshots/k8s_pods_services.png){width=49%} ![](../screenshots/k8s_smoke_load_test.png){width=49%}
+
+*Figure 15 (left) – `make k8s-deploy` on minikube: all resources created, three rollouts complete, 2 API pods plus Prometheus and Grafana running, nginx Ingress for `heart-risk.local`. Figure 16 (right) – Smoke test against the LoadBalancer (health, model-info, single and batch predictions, 422 on invalid input, metrics), followed by repeated two-minute load tests.*
+
+![](../screenshots/api_server.png){width=52%} ![](../screenshots/pods_autoscaler.png){width=46%}
+
+*Figure 17 (left) – Swagger UI served by the cluster through the LoadBalancer service. Figure 18 (right) – `kubectl get hpa -w` during load: CPU rises from 9 % to 113 % of the request and the HPA scales from 2 to 4 replicas, then CPU settles back to 17 %.*
 
 # 8. Monitoring and logging
 
@@ -241,7 +253,9 @@ The target is a local minikube cluster (Kubernetes v1.37, Docker driver) started
 
 **Grafana** has its datasource and the **Heart Risk API** dashboard (11 panels) provisioned from code. Panels: healthy replicas, request rate, total predictions, p95 latency, 5xx ratio, positive share, request rate by endpoint and status, latency percentiles, predictions by risk band, predicted-probability distribution, and requests per pod. `scripts/load_test.py` sends a realistic mix of traffic (single requests, batches and about 5 % invalid requests) to populate the dashboard.
 
-*Figures 17–18: Prometheus targets and the Grafana dashboard. Screenshots go here: `screenshots/prometheus_targets.png`, `screenshots/grafana_dashboard.png`.*
+![Figure 19 – Prometheus scraping both API pods separately (`heart_api_predictions_total` per pod, instance and risk band)](../screenshots/prometheus_targets.png){width=68%}
+
+![Figure 20 – Grafana *Heart Risk API* dashboard after the load tests: about 8.1 k predictions, p95 latency around 15 ms, no 5xx errors, 44 % positive share and the predicted-probability distribution](../screenshots/grafana_dashboard.png){width=78%}
 
 # 9. Reflections and next steps
 
@@ -256,5 +270,6 @@ python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirem
 make data eda train test lint          # data -> figures -> MLflow runs + models/ -> 36 tests
 make docker-build docker-run           # in another shell: make smoke
 make k8s-deploy && BASE_URL=http://localhost:8080 make smoke && make load
+./scripts/run_linux.sh                # Linux: interactive menu for all of the above
 make mlflow-ui                         # http://localhost:5000
 ```

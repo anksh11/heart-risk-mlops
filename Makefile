@@ -2,7 +2,7 @@ PY      ?= python
 IMAGE   ?= heart-risk-api:1.0.0
 export PYTHONPATH := src:.
 
-.PHONY: install data eda train train-quick test lint format docker-build docker-run smoke k8s-deploy k8s-delete load mlflow-ui serve
+.PHONY: install data eda train train-quick test lint format docker-build docker-run smoke k8s-deploy k8s-delete load mlflow-ui serve report
 
 install:        ## create env from requirements.txt
 	$(PY) -m pip install -r requirements.txt
@@ -36,3 +36,5 @@ k8s-delete:
 	kubectl delete -k k8s --ignore-not-found
 load:           ## generate traffic for the Grafana dashboard
 	$(PY) scripts/load_test.py --url $${BASE_URL:-http://localhost:8080} --seconds 120
+report:         ## rebuild the .docx from REPORT.md (needs pandoc, e.g. pip install pypandoc_binary)
+	cd reports && pandoc REPORT.md -o MLOps_Assignment1_Report.docx --reference-doc=reference.docx --resource-path=.:..
