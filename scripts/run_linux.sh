@@ -185,10 +185,13 @@ step_smoke() {
 step_load() {
   local url secs; url=$(api_url) || true
   [[ -z $url ]] && { err "API not reachable – run the 'access' step first."; return 1; }
-  read -r -p "Seconds of traffic [120]: " secs; secs=${secs:-120}
+  local conc
+  read -r -p "Seconds of traffic [180]: " secs; secs=${secs:-180}
+  read -r -p "Parallel workers (8+ makes the HPA scale out) [10]: " conc; conc=${conc:-10}
   info "Watch scaling in another shell:  kubectl -n $NS get hpa -w"
-  run "$PY" scripts/load_test.py --url "$url" --seconds "$secs"
-  run kubectl -n "$NS" get hpa
+  info "Scale-up needs ~1-2 min of sustained CPU above 70% of the 100m request."
+  run "$PY" scripts/load_test.py --url "$url" --seconds "$secs" --rps 20 --concurrency "$conc"
+  run kubectl -n "$NS" get hpa,pods
 }
 
 step_status() {

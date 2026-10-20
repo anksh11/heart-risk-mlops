@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import threading
 import time
 import urllib.error
 import urllib.request
+from collections import Counter
 
 import pandas as pd
 
@@ -27,7 +29,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="http://localhost:8080")
     ap.add_argument("--seconds", type=int, default=60)
-    ap.add_argument("--rps", type=float, default=8)
+    ap.add_argument("--rps", type=float, default=8, help="target requests/second per worker")
+    ap.add_argument("--concurrency", type=int, default=1, help="parallel workers (raise to trigger the HPA)")
     args = ap.parse_args()
 
     df = pd.read_csv("data/processed/heart_clean.csv").drop(columns=["target", "source"], errors="ignore")
@@ -37,19 +40,27 @@ def main() -> None:
             if r[k] is not None:
                 r[k] = int(r[k])
 
-    end, sent, codes = time.time() + args.seconds, 0, {}
-    while time.time() < end:
-        roll = random.random()
-        if roll < 0.05:
-            code = post(f"{args.url}/predict", {"age": 400})  # invalid -> 422
-        elif roll < 0.15:
-            code = post(f"{args.url}/predict/batch", {"patients": random.sample(rows, 5)})
-        else:
-            code = post(f"{args.url}/predict", random.choice(rows))
-        codes[code] = codes.get(code, 0) + 1
-        sent += 1
-        time.sleep(1 / args.rps)
-    print(f"sent {sent} requests: {codes}")
+    end, codes, lock = time.time() + args.seconds, Counter(), threading.Lock()
+
+    def worker() -> None:
+        while time.time() < end:
+            roll = random.random()
+            if roll < 0.05:
+                code = post(f"{args.url}/predict", {"age": 400})  # invalid -> 422
+            elif roll < 0.15:
+                code = post(f"{args.url}/predict/batch", {"patients": random.sample(rows, 5)})
+            else:
+                code = post(f"{args.url}/predict", random.choice(rows))
+            with lock:
+                codes[code] += 1
+            time.sleep(1 / args.rps)
+
+    threads = [threading.Thread(target=worker, daemon=True) for _ in range(max(1, args.concurrency))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(f"sent {sum(codes.values())} requests with {len(threads)} workers: {dict(codes)}")
 
 
 if __name__ == "__main__":
